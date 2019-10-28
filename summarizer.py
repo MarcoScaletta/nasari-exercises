@@ -7,18 +7,22 @@ import math
 
 class Summarizer:
 
-    def __init__(self, nasari, preprocessor,filename):
+    def __init__(self, nasari, preprocessor,filename, method=['NEARNESS']):
         self.nasari :Nasari = nasari
         self.last_summarization = None
         self.preprocessor = preprocessor
         self.document = Document(filename, self.preprocessor)
-        self.init_no_weights()
         self.sorted_paragraphs_dict = dict()
+        self.method = method
+        if 'NEARNESS' in self.method:
+            self.init_nearness()
+        if 'TITLE' in self.method:
+            self.init_by_title()
 
     def title_summarize(self):
         pass
 
-    def init_no_weights(self):
+    def init_by_title(self):
         nasari_context = self.document.title_bow
         par_val = []
         for word in self.document.title_bow:
@@ -32,10 +36,14 @@ class Summarizer:
             overlap = bow.intersection(nasari_context)
             par_val.append(len(overlap))
             # print("->", bow)
-        self.sorted_paragraphs = list(np.argsort(par_val))
-        self.sorted_paragraphs.reverse()
+        self.sorted_paragraphs_dict['TITLE'] = list(np.argsort(par_val))
+        self.sorted_paragraphs_dict['TITLE'].reverse()
 
     def summarize(self, percentage):
+        if len(self.method) < 1:
+            print("ERROR, NO METHOD")
+            return None
+
         tot_lines = int(len(self.document.lines)*percentage)
         if tot_lines < 1:
             tot_lines = 1
@@ -46,17 +54,20 @@ class Summarizer:
         else:
             print("Summarizing to", tot_lines, "lines")
 
-        # new_lines = np.zeros(len(self.document.paragraphs))
+        best_paragraph = np.zeros(len(self.document.paragraphs))
 
-        # for method in self.sorted_paragraphs_dict:
-        #     print("method:", method)
-        #     for i in range(len(new_lines)):
-        #         new_lines[i] += self.sorted_paragraphs_dict
+        print("methods:", self.method)
+        for method in self.sorted_paragraphs_dict:
+            for i in range(len(best_paragraph)):
+                best_paragraph[i] += self.sorted_paragraphs_dict[method][i]
         
-        # # new_lines = self.sorted_paragraphs[:tot_lines]
-        # # new_lines.sort()
+        best_paragraph = list(np.argsort(best_paragraph))
+        best_paragraph.reverse()
 
-        # return [self.document.paragraphs[i] for i in new_lines]
+        new_lines = best_paragraph[:tot_lines]
+        new_lines.sort()
+
+        return [self.document.paragraphs[i] for i in new_lines]
 
     
     def best_nasari_vector_id(self, word):
@@ -103,4 +114,3 @@ class Summarizer:
         
         self.sorted_paragraphs_dict['NEARNESS'] = list(np.argsort(self.nearness_list))
         self.sorted_paragraphs_dict['NEARNESS'].reverse()
-        print(self.sorted_paragraphs_dict['NEARNESS'])
